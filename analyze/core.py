@@ -249,10 +249,10 @@ def postprocess_run(field, store_suffix, utrans):
     runner = get_runner(stack, utrans, ncomp=1)
     # begin post-processing steps
     with get_store(field, store_suffix) as store:
-        nf.aggregate_run_attributes(store)
-        nf.convolve_evidence(store, evid_kernel)
-        nf.aggregate_run_products(store)
-        nf.aggregate_run_pdfs(store)
+        #nf.aggregate_run_attributes(store)
+        #nf.convolve_evidence(store, evid_kernel)
+        #nf.aggregate_run_products(store)
+        #nf.aggregate_run_pdfs(store)
         nf.deblend_hf_intensity(store, stack, runner)
         #nf.convolve_post_pdfs(store, post_kernel, evid_weight=False)
         #nf.quantize_conv_marginals(store)
@@ -284,6 +284,19 @@ def create_priors_from_posteriors(field, store_suffix):
         with h5py.File(DATA_PATH/f'{field}.hdf', 'w') as hdf:
             hdf.create_dataset('bins', data=pdf_bins)
             hdf.create_dataset('vals', data=apdf)
+
+
+def export_deblended_to_fits(field, store_suffix):
+    with get_store(field, store_suffix) as store:
+        # dimensions (t, m, S, b, l)
+        hfdb = store.hdf['/products/hf_deblended'][...]
+    # Select 1-0 transition and sum profiles from multiple components
+    np.nan_to_num(hfdb, copy=False)
+    cube = hfdb[0,...].sum(axis=0)  # -> (S, b, l)
+    # Create FITS file
+    # FIXME need to make header, can use "simple_header" for spatial axes.
+    hdu = fits.PrimaryHDU(cube)
+    hdu.writeto(DATA_PATH/f'{field}_{store_suffix}_hfdb.fits', overwrite=True)
 
 
 if __name__ == '__main__':

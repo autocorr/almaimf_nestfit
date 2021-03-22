@@ -56,16 +56,16 @@ NBD_CMAP.set_bad('0.2')
 #                       NestFit plotting routines
 ##############################################################################
 
-def store_to_plotter(store, field=None):
+def store_to_plotter(store, label=None):
     pad = nfplot.PaddingConfig(
             edge_pads=(0.7, 0.8, 0.6, 0.3),
             sep_pads=(0.2, 0.2),
             cbar_width=0.15,
     )
-    if field is None:
+    if label is None:
         plot_dir = str(PLOT_PATH)
     else:
-        plot_dir = str(PLOT_PATH/field)
+        plot_dir = str(PLOT_PATH/label)
     spl = nfplot.StorePlotter(store, plot_dir=plot_dir, pad=pad)
     return spl
 
@@ -81,13 +81,13 @@ def plot_test_pix(store, stack, pix=(100, 100)):
 def make_all_plots(field, store_suffix):
     stack = get_cubestack(field)
     with get_store(field, store_suffix) as store:
-        spl = store_to_plotter(store, field=field)
+        spl = store_to_plotter(store, label=f'{field}_{store_suffix}')
         nfplot.plot_nbest(spl)
         nfplot.plot_conv_nbest(spl)
         nfplot.plot_deblend_peak(spl)
-        nfplot.plot_deblend_intintens(spl)
+        nfplot.plot_deblend_intintens(spl, vmax=None)
         nfplot.plot_map_props(spl)
-        nfplot.plot_evdiff(spl, conv=False)
+        nfplot.plot_evdiff(spl, conv=True)
         nfplot.plot_quan_props(spl, conv=False)
         nfplot.plot_err_props(spl, conv=False)
         #plot_test_pix(store, stack)
