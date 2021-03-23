@@ -26,6 +26,8 @@ import scipy as sp
 
 import spectral_cube
 from astropy import convolution
+from astropy import units as u
+from astropy import constants as c
 from astropy.io import fits
 
 sys.path.append('/lustre/aoc/users/bsvoboda/temp/nestfit')
@@ -292,13 +294,15 @@ def export_deblended_to_fits(field, store_suffix):
         hfdb = store.hdf['/products/hf_deblended'][...]
         bins = store.hdf['/products/pdf_bins'][...]
         header = store.read_header()
-    xarr = bins[0]  # -> index for vcen
-    header['CDELT3'] = xarr[1] - xarr[0]
+    restfreq = header['RESTFRQ'] * u.Hz
+    varr = bins[0]  # -> index for vcen
+    farr = (restfreq - restfreq * (varr * u.km/u.s / c.c)).to('Hz').value
+    header['CDELT3'] = farr[1] - farr[0]
     header['CRPIX3'] = 1
-    header['CRVAL3'] = xarr[0]
-    header['CTYPE3'] = 'VELOCITY'
-    header['CUNIT3'] = 'km/s'
-    header['NAXIS3'] = xarr.shape[0]
+    header['CRVAL3'] = farr[0]
+    header['CTYPE3'] = 'FREQ'
+    header['CUNIT3'] = 'Hz'
+    header['NAXIS3'] = farr.shape[0]
     # Select 1-0 transition and sum profiles from multiple components
     np.nan_to_num(hfdb, copy=False)
     cube = hfdb[0,...].sum(axis=0)  # -> (S, b, l)
