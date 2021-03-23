@@ -290,12 +290,20 @@ def export_deblended_to_fits(field, store_suffix):
     with get_store(field, store_suffix) as store:
         # dimensions (t, m, S, b, l)
         hfdb = store.hdf['/products/hf_deblended'][...]
+        bins = store.hdf['/products/pdf_bins'][...]
+        header = store.read_header()
+    xarr = bins[0]  # -> index for vcen
+    header['CDELT3'] = xarr[1] - xarr[0]
+    header['CRPIX3'] = 1
+    header['CRVAL3'] = xarr[0]
+    header['CTYPE3'] = 'VELOCITY'
+    header['CUNIT3'] = 'km/s'
+    header['NAXIS3'] = xarr.shape[0]
     # Select 1-0 transition and sum profiles from multiple components
     np.nan_to_num(hfdb, copy=False)
     cube = hfdb[0,...].sum(axis=0)  # -> (S, b, l)
     # Create FITS file
-    # FIXME need to make header, can use "simple_header" for spatial axes.
-    hdu = fits.PrimaryHDU(cube)
+    hdu = fits.PrimaryHDU(data=cube, header=header)
     hdu.writeto(DATA_PATH/f'{field}_{store_suffix}_hfdb.fits', overwrite=True)
 
 
