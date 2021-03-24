@@ -251,11 +251,12 @@ def postprocess_run(field, store_suffix, utrans):
     runner = get_runner(stack, utrans, ncomp=1)
     # begin post-processing steps
     with get_store(field, store_suffix) as store:
-        #nf.aggregate_run_attributes(store)
-        #nf.convolve_evidence(store, evid_kernel)
-        #nf.aggregate_run_products(store)
-        #nf.aggregate_run_pdfs(store)
+        nf.aggregate_run_attributes(store)
+        nf.convolve_evidence(store, evid_kernel)
+        nf.aggregate_run_products(store)
+        nf.aggregate_run_pdfs(store)
         nf.deblend_hf_intensity(store, stack, runner)
+        nf.generate_predicted_profiles(store, stack, runner)
         #nf.convolve_post_pdfs(store, post_kernel, evid_weight=False)
         #nf.quantize_conv_marginals(store)
 
@@ -289,9 +290,12 @@ def create_priors_from_posteriors(field, store_suffix):
 
 
 def export_deblended_to_fits(field, store_suffix):
+    # FIXME Exporting to FITS is a work-in progress in NestFit, so hard-code
+    # the header and such here.
     with get_store(field, store_suffix) as store:
         # dimensions (t, m, S, b, l)
         hfdb = store.hdf['/products/hf_deblended'][...]
+        # dimensions (p, h)
         bins = store.hdf['/products/pdf_bins'][...]
         header = store.read_header()
     restfreq = header['RESTFRQ'] * u.Hz
@@ -303,12 +307,30 @@ def export_deblended_to_fits(field, store_suffix):
     header['CTYPE3'] = 'FREQ'
     header['CUNIT3'] = 'Hz'
     header['NAXIS3'] = farr.shape[0]
-    # Select 1-0 transition and sum profiles from multiple components
+    # Select 1-0 transition and sum profiles over multiple components
     np.nan_to_num(hfdb, copy=False)
     cube = hfdb[0,...].sum(axis=0)  # -> (S, b, l)
+    cube = cube.astype('float32')
     # Create FITS file
     hdu = fits.PrimaryHDU(data=cube, header=header)
     hdu.writeto(DATA_PATH/f'{field}_{store_suffix}_hfdb.fits', overwrite=True)
+
+
+def export_model_to_fits(field, store_suffix):
+    # FIXME Exporting to FITS is a work-in progress in NestFit, so hard-code
+    # the header and such here.
+    dcube = get_cubestack(field).cubes[0]
+    header = dcube.full_header
+    with get_store(field, store_suffix) as store:
+        # dimensions (m, S, b, l)
+        mcube = store.hdf['/products/model_spec/trans1'][...]
+    # Select 1-0 transition and sum profiles over multiple components
+    np.nan_to_num(mcube, copy=False)
+    sum_mcube = mcube.sum(axis=0)  # -> (S, b, l)
+    sum_mcube = sum_mcube.astype('float32')
+    # Create FITS file
+    hdu = fits.PrimaryHDU(data=sum_mcube, header=header)
+    hdu.writeto(DATA_PATH/f'{field}_{store_suffix}_model.fits', overwrite=True)
 
 
 if __name__ == '__main__':
